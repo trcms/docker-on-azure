@@ -18,8 +18,7 @@ sudo tee /etc/docker/daemon.json > /dev/null <<EOF
     "syslog-address": "udp://localhost:514",
     "tag": "{{.Name}}/{{.ID}}"
   },
-  "storage-driver": "overlay2",
-  "userns-remap": "default"
+  "storage-driver": "overlay2"
 }
 EOF
 
@@ -47,6 +46,4 @@ sudo -E docker run --label com.docker.editions.system \
            -v /var/run/docker.sock:/var/run/docker.sock \
            -v /var/lib/docker:/var/lib/docker \
            -v /var/log:/var/log \
-           --userns=host \
-           --privileged \
            quay.io/ctrack/init-azure:$DOCKER_FOR_IAAS_VERSION

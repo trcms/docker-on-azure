@@ -245,8 +245,6 @@ run_system_containers()
         --cap-add SYS_ADMIN \
         --cap-add DAC_OVERRIDE \
         --cap-add DAC_READ_SEARCH \
-        --userns=host \
-        --privileged \
         docker4x/logger-azure:$DOCKER_FOR_IAAS_VERSION
 
     echo "kick off guide container"
@@ -273,9 +271,6 @@ run_system_containers()
         -e SWARM_LOGS_STORAGE_ACCOUNT \
         -e SWARM_INFO_STORAGE_ACCOUNT \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        -v /usr/bin/docker:/usr/bin/docker \
-        --userns=host \
-        --privileged \
         quay.io/ctrack/guide-azure:$DOCKER_FOR_IAAS_VERSION
 
     if [ "$ROLE" = "MANAGER" ]; then
@@ -296,8 +291,6 @@ run_system_containers()
             -e VMSS_MGR="$VMSS_MGR" \
             -e VMSS_WRK="$VMSS_WRK" \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            --userns=host \
-            --privileged \
             docker4x/meta-azure:$DOCKER_FOR_IAAS_VERSION metaserver -iaas_provider=azure
     fi
 }
