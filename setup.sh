@@ -26,6 +26,8 @@ sudo usermod -aG docker $ADMIN_USER
 sudo systemctl enable docker
 sudo systemctl restart docker
 
+sudo sysctl -w vm.max_map_count=262144
+
 sudo -E docker run --label com.docker.editions.system \
            --log-driver=json-file \
            --restart=no \
