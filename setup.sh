@@ -49,19 +49,28 @@ SA_ENDPOINT=`az storage account show --resource-group $GROUP_NAME --name $SWARM_
 #create share
 az storage share create --name $SWARM_VOLUME_SHARE --account-name $SWARM_STORAGE_ACCOUNT
 
-#create local mountpoint for volumes (/mnt is already used by azure)
-LOCALDIR=/volumes
-sudo mkdir -p $LOCALDIR
-sudo chmod 777 $LOCALDIR
+#create directory for local volumes (grafana and prometheus have issues with writing to cifs shares)
+LOCAL_VOLUME_DIR=/volumes/local
+sudo mkdir -p $LOCAL_VOLUME_DIR
+#convert delimeted string to bash array, loop through
+LOCAL_MOUNTS=$(echo $SWARM_VOLUME_LOCAL_MOUNTS | tr ' ' "\n")
+for LOCAL_MOUNT in ${LOCAL_MOUNTS[@]}; do
+  sudo mkdir -p $LOCAL_VOLUME_DIR/$LOCAL_MOUNT
+  sudo chmod 777 $LOCAL_VOLUME_DIR/$LOCAL_MOUNT
+done
+
+#create directory for remote volumes
+REMOTE_VOLUME_DIR=/volumes/remote
+sudo mkdir -p $REMOTE_VOLUME_DIR
 
 #add share to fstab
-echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $LOCALDIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl 0 0" | sudo tee -a /etc/fstab
-sudo mount $LOCALDIR
+echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $REMOTE_VOLUME_DIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl 0 0" | sudo tee -a /etc/fstab
+sudo mount $REMOTE_VOLUME_DIR
 
 #convert delimeted string to bash array, loop through
-MOUNTS=$(echo $SWARM_VOLUME_MOUNTS | tr ' ' "\n")
+REMOTE_MOUNTS=$(echo $SWARM_VOLUME_REMOTE_MOUNTS | tr ' ' "\n")
 for MOUNT in ${MOUNTS[@]}; do
-  sudo mkdir -p $LOCALDIR/$MOUNT
+  sudo mkdir -p $REMOTE_VOLUME_DIR/$REMOTE_MOUNT
 done
 
 #kick off a modified version of the swarm init container
