@@ -41,18 +41,22 @@ SA_KEY=`az storage account keys list --resource-group $GROUP_NAME --account-name
 #get full endpoint for storage account (not sure if this domain differs for government or not)
 SA_ENDPOINT=`az storage account show --resource-group $GROUP_NAME --name $SWARM_STORAGE_ACCOUNT | python -c "import sys, json; print json.load(sys.stdin)['primaryEndpoints']['file'].replace('/', '').split(':')[1]"`
 
+#create share
+az storage share create --name $SWARM_VOLUME_SHARE --account-name $SWARM_STORAGE_ACCOUNT
+
+#create local mountpoint for volumes (/mnt is already used by azure)
+LOCALDIR=/volumes
+sudo mkdir -p $LOCALDIR
+sudo chmod 777 $LOCALDIR
+
+#add share to fstab
+echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $LOCALDIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl 0 0" | sudo tee -a /etc/fstab
+sudo mount $LOCALDIR
+
 #convert delimeted string to bash array, loop through
-SHARES=$(echo $SWARM_VOLUME_SHARES | tr ' ' "\n")
-for SHARE in ${SHARES[@]}; do
-  #create share
-  az storage share create --name $SHARE --account-name $SWARM_STORAGE_ACCOUNT
-  #create local mountpoint for volumes (/mnt is already used by azure so we'll use /volumes)
-  sudo mkdir -p /volumes/$SHARE
-  sudo chmod 777 /volumes/$SHARE
-  
-  #add share to fstab
-  echo "//$SA_ENDPOINT/$SHARE /volumes/$SHARE cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl 0 0" | sudo tee -a /etc/fstab
-  sudo mount /volumes/$SHARE
+MOUNTS=$(echo $SWARM_VOLUME_MOUNTS | tr ' ' "\n")
+for MOUNT in ${MOUNTS[@]}; do
+  sudo mkdir -p $LOCALDIR/$MOUNT
 done
 
 #kick off a modified version of the swarm init container
