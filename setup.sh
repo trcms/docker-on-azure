@@ -6,7 +6,7 @@ export DOCKER_FOR_UBUNTU_VERSION="17.06.0~ce-0~ubuntu"
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common vim
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common vim unzip
 
 #set up docker repo
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
