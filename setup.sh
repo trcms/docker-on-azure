@@ -34,6 +34,11 @@ sudo systemctl enable docker
 #bounce docker for config changes
 sudo systemctl restart docker
 
+#set max map kernel option appropriately for elasticsearch
+sudo sysctl -w vm.max_map_count=262144
+#ensure value gets set on restart
+echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
+
 #login to azure with service principal
 az login --service-principal -u $APP_ID -p $APP_SECRET --tenant $TENANT_ID
 #get storage account access key 
