@@ -69,7 +69,7 @@ sudo mount $REMOTE_VOLUME_DIR
 
 #convert delimeted string to bash array, loop through
 REMOTE_MOUNTS=$(echo $SWARM_VOLUME_REMOTE_MOUNTS | tr ' ' "\n")
-for MOUNT in ${MOUNTS[@]}; do
+for REMOTE_MOUNT in ${REMOTE_MOUNTS[@]}; do
   sudo mkdir -p $REMOTE_VOLUME_DIR/$REMOTE_MOUNT
 done
 

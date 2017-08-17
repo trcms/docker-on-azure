@@ -236,6 +236,18 @@ run_system_containers()
     fi
 }
 
+install_cloudstor_plugin()
+{
+    echo "Install storage plugin"
+    SA_KEY=$(sakey.py)
+    docker plugin install --alias cloudstor:azure --grant-all-permissions docker4x/cloudstor:$DOCKER_FOR_IAAS_VERSION  \
+        CLOUD_PLATFORM=AZURE \
+        AZURE_STORAGE_ACCOUNT_KEY="$SA_KEY" \
+        AZURE_STORAGE_ACCOUNT="$SWARM_INFO_STORAGE_ACCOUNT" \
+        AZURE_STORAGE_ENDPOINT="$STORAGE_ENDPOINT" \
+        DEBUG=1
+}
+
 # invoke system containers
 run_system_containers
 
@@ -251,6 +263,8 @@ else
     get_worker_token
     setup_worker
 fi
+
+install_cloudstor_plugin
 
 # show the results.
 echo "#================ docker info    ==="
