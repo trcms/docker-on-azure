@@ -23,7 +23,9 @@ sudo apt-get install -y docker-ce=$DOCKER_FOR_UBUNTU_VERSION azure-cli
 #update docker config
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
-  "storage-driver": "overlay2"
+  "storage-driver": "overlay2",
+  "metrics-addr" : "0.0.0.0:9323",
+  "experimental" : true
 }
 EOF
 
