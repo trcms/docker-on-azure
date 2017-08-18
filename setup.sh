@@ -66,7 +66,7 @@ REMOTE_VOLUME_DIR=/volumes/remote
 sudo mkdir -p $REMOTE_VOLUME_DIR
 
 #add share to fstab
-echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $REMOTE_VOLUME_DIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl 0 0" | sudo tee -a /etc/fstab
+echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $REMOTE_VOLUME_DIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl,noperm 0 0" | sudo tee -a /etc/fstab
 sudo mount $REMOTE_VOLUME_DIR
 
 #convert delimeted string to bash array, loop through
