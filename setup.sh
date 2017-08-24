@@ -23,9 +23,13 @@ sudo apt-get install -y docker-ce=$DOCKER_FOR_UBUNTU_VERSION azure-cli
 #update docker config
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
-  "storage-driver": "overlay2",
+  "storage-driver" : "overlay2",
   "metrics-addr" : "0.0.0.0:9323",
-  "experimental" : true
+  "experimental" : true,
+  "log-opts" : {
+    "max-size" : "5m",
+    "max-file" : "3"
+  }
 }
 EOF
 
@@ -41,6 +45,8 @@ sudo sysctl -w vm.max_map_count=262144
 #ensure value gets set on restart
 echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
 
+#if we're deploying to government, set the cloud first
+[ "$GOVERNMENT_CLOUD" == "True" ] && az cloud set --name AzureUSGovernment
 #login to azure with service principal
 az login --service-principal -u $APP_ID -p $APP_SECRET --tenant $TENANT_ID
 #get storage account access key 
