@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export DOCKER_FOR_IAAS_VERSION="17.06.0-ce-azure1"
-export DOCKER_FOR_UBUNTU_VERSION="17.06.0~ce-0~ubuntu"
+export DOCKER_FOR_IAAS_VERSION="17.06.1-ce-azure1"
+export DOCKER_FOR_UBUNTU_VERSION="17.06.1~ce-0~ubuntu"
 
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update

@@ -1,4 +1,4 @@
-FROM docker4x/init-azure:17.06.0-ce-azure1
+FROM docker4x/init-azure:17.06.1-ce-azure1
 
 COPY resources/entry.sh /
 RUN sed -i -e 's/v3\.5/edge/g' /etc/apk/repositories && \
