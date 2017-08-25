@@ -131,7 +131,6 @@ join_as_manager()
             break
         fi
     done
-    buoy -event="node:manager_join" -iaas_provider=azure -swarm_id=$SWARM_ID -node_id=$NODE_ID -channel=$CHANNEL -addon=$EDITION_ADDON
     echo "   Successfully joined as a Swarm Manager"
 }
 
@@ -162,10 +161,6 @@ setup_manager()
             azureleader.py insert-ip $PRIVATE_IP
 
             echo "   Leader init complete"
-            # send identify message
-            buoy -event=identify -iaas_provider=azure -channel=$CHANNEL -addon=$EDITION_ADDON
-            # send swarm init message
-            buoy -event="swarm:init" -iaas_provider=azure -swarm_id=$SWARM_ID -node_id=$NODE_ID -channel=$CHANNEL -addon=$EDITION_ADDON
         else
             echo " Error is normal, it is because we already have a swarm leader, lets setup a regular manager instead."
             join_as_manager
@@ -213,66 +208,11 @@ setup_worker()
             break
         fi
     done
-    buoy -event="node:join" -iaas_provider=azure -swarm_id=$SWARM_ID -node_id=$NODE_ID -channel=$CHANNEL -addon=$EDITION_ADDON
 }
 
 
 run_system_containers()
 {
-    # add logging container
-    docker volume create --name container-logs
-
-    echo "kick off logger container"
-    docker run \
-        --label com.docker.editions.system \
-        --log-driver=json-file \
-        --name=editions_logger \
-        --restart=always \
-        -d \
-        -e ROLE \
-        -e REGION \
-        -e TENANT_ID \
-        -e APP_ID \
-        -e APP_SECRET \
-        -e ACCOUNT_ID \
-        -e GROUP_NAME \
-        -e STORAGE_ENDPOINT \
-        -e RESOURCE_MANAGER_ENDPOINT \
-        -e ACTIVE_DIRECTORY_ENDPOINT \
-        -e SWARM_LOGS_STORAGE_ACCOUNT \
-        -e SWARM_FILE_SHARE="$AZURE_HOSTNAME" \
-        -p 514:514/udp \
-        --cap-add SYS_ADMIN \
-        --cap-add DAC_OVERRIDE \
-        --cap-add DAC_READ_SEARCH \
-        docker4x/logger-azure:$DOCKER_FOR_IAAS_VERSION
-
-    echo "kick off guide container"
-    docker run \
-        --label com.docker.editions.system \
-        --log-driver=json-file \
-        --restart=always  \
-        --name=editions_guide \
-        -d \
-        -e ROLE \
-        -e REGION \
-        -e ACCOUNT_ID \
-        -e TENANT_ID \
-        -e APP_ID \
-        -e APP_SECRET \
-        -e GROUP_NAME \
-        -e PRIVATE_IP \
-        -e CHANNEL \
-        -e DOCKER_FOR_IAAS_VERSION \
-        -e EDITION_ADDON \
-        -e RESOURCE_MANAGER_ENDPOINT \
-        -e STORAGE_ENDPOINT \
-        -e ACTIVE_DIRECTORY_ENDPOINT \
-        -e SWARM_LOGS_STORAGE_ACCOUNT \
-        -e SWARM_INFO_STORAGE_ACCOUNT \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        quay.io/ctrack/guide-azure:$DOCKER_FOR_IAAS_VERSION
-
     if [ "$ROLE" = "MANAGER" ]; then
         echo "kick off meta container"
         docker run \
@@ -291,6 +231,7 @@ run_system_containers()
             -e VMSS_MGR="$VMSS_MGR" \
             -e VMSS_WRK="$VMSS_WRK" \
             -v /var/run/docker.sock:/var/run/docker.sock \
+            --privileged \
             docker4x/meta-azure:$DOCKER_FOR_IAAS_VERSION metaserver -iaas_provider=azure
     fi
 }
@@ -323,18 +264,14 @@ else
     setup_worker
 fi
 
-# install and configure cloudstor plugin for Azure only if deploying from Edge and Stable channels for now.
-if [ "$CHANNEL" == "edge" ] || [ "$CHANNEL" == "stable" ] ; then
-    echo " $CHANNEL channel. Install cloudstor ..."
-    install_cloudstor_plugin
-else
-    echo " Skip cloudstor installation"
-fi
+install_cloudstor_plugin
 
 # show the results.
 echo "#================ docker info    ==="
 docker info
-echo "#================ docker node ls ==="
-docker node ls
+if [ "$ROLE" == "MANAGER" ] ; then
+    echo "#================ docker node ls ==="
+    docker node ls
+fi
 echo "#==================================="
 echo "Complete Swarm setup"
