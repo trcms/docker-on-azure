@@ -1,24 +1,19 @@
 #!/bin/bash
 
-export DOCKER_FOR_IAAS_VERSION="17.06.1-ce-azure1"
-export DOCKER_FOR_UBUNTU_VERSION="17.06.1~ce-0~ubuntu"
+export DOCKER_FOR_UBUNTU_VERSION="17.06.2~ce-0~ubuntu"
 
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common vim unzip
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common ntp vim unzip
 
 #set up docker repo
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 
-#set up azure cli repo
-sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main"
-
 #refresh package list and install 
 sudo apt-get update
-sudo apt-get install -y docker-ce=$DOCKER_FOR_UBUNTU_VERSION azure-cli
+sudo apt-get install -y docker-ce=$DOCKER_FOR_UBUNTU_VERSION
 
 #update docker config
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
@@ -45,17 +40,8 @@ sudo sysctl -w vm.max_map_count=262144
 #ensure value gets set on restart
 echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
 
-#if we're deploying to government, set the cloud first
-[ "$GOVERNMENT_CLOUD" == "True" ] && az cloud set --name AzureUSGovernment
-#login to azure with service principal
-az login --service-principal -u $APP_ID -p $APP_SECRET --tenant $TENANT_ID
-#get storage account access key 
-SA_KEY=`az storage account keys list --resource-group $GROUP_NAME --account-name $SWARM_STORAGE_ACCOUNT | python -c "import sys, json; print json.load(sys.stdin)[0]['value']"`
-#get full endpoint for storage account (not sure if this domain differs for government or not)
-SA_ENDPOINT=`az storage account show --resource-group $GROUP_NAME --name $SWARM_STORAGE_ACCOUNT | python -c "import sys, json; print json.load(sys.stdin)['primaryEndpoints']['file'].replace('/', '').split(':')[1]"`
-
-#create share
-az storage share create --name $SWARM_VOLUME_SHARE --account-name $SWARM_STORAGE_ACCOUNT
+#set timezone
+sudo timedatectl set-timezone $AZURE_TIMEZONE
 
 #create directory for local volumes (grafana and prometheus have issues with writing to cifs shares)
 LOCAL_VOLUME_DIR=/volumes/local
@@ -72,7 +58,7 @@ REMOTE_VOLUME_DIR=/volumes/remote
 sudo mkdir -p $REMOTE_VOLUME_DIR
 
 #add share to fstab
-echo "//$SA_ENDPOINT/$SWARM_VOLUME_SHARE $REMOTE_VOLUME_DIR cifs vers=3.0,username=$SWARM_STORAGE_ACCOUNT,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl,noperm 0 0" | sudo tee -a /etc/fstab
+echo "//$STORAGE_ACCOUNT_NAME.$STORAGE_ACCOUNT_DNS/$SWARM_VOLUME_SHARE $REMOTE_VOLUME_DIR cifs vers=3.0,username=$STORAGE_ACCOUNT_NAME,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl,noperm 0 0" | sudo tee -a /etc/fstab
 sudo mount $REMOTE_VOLUME_DIR
 
 #convert delimeted string to bash array, loop through
@@ -81,25 +67,53 @@ for REMOTE_MOUNT in ${REMOTE_MOUNTS[@]}; do
   sudo mkdir -p $REMOTE_VOLUME_DIR/$REMOTE_MOUNT
 done
 
-#kick off a modified version of the swarm init container
-sudo -E docker run --label com.docker.editions.system \
-           --log-driver=json-file \
-           --restart=no \
-           -i \
-           -e SUB_ID \
-           -e ROLE \
-           -e REGION \
-           -e TENANT_ID \
-           -e APP_ID \
-           -e APP_SECRET \
-           -e ACCOUNT_ID \
-           -e GROUP_NAME \
-           -e PRIVATE_IP \
-           -e DOCKER_FOR_IAAS_VERSION \
-           -e SWARM_INFO_STORAGE_ACCOUNT \
-           -e SWARM_LOGS_STORAGE_ACCOUNT \
-           -e AZURE_HOSTNAME \
-           -v /var/run/docker.sock:/var/run/docker.sock \
-           -v /var/lib/docker:/var/lib/docker \
-           -v /var/log:/var/log \
-           quay.io/ctrack/init-azure:$DOCKER_FOR_IAAS_VERSION
+#now that we have access to share storage, create folder for swarm join tokens
+sudo mkdir -p $REMOTE_VOLUME_DIR/.swarminfo
+
+#initialize some variables
+MANAGER_JOIN_TOKEN=$REMOTE_VOLUME_DIR/.swarminfo/manager-join-token
+WORKER_JOIN_TOKEN=$REMOTE_VOLUME_DIR/.swarminfo/worker-join-token
+
+JOIN_TOKEN=""
+LOOP_COUNTER=0
+
+#if we're on a manager node:
+if [[ $AZURE_HOSTNAME == swarm-manager* ]]; then
+  #if we're on manager0 and we don't have both token files:
+  if [[ $AZURE_HOSTNAME == *0 && !(-f $MANAGER_JOIN_TOKEN && -f $WORKER_JOIN_TOKEN) ]]; then
+    echo "running from first manager node and no tokens exist; initiating swarm"
+    #clean up old files if we're in a bad state
+    rm -f $MANAGER_JOIN_TOKEN
+    rm -f $WORKER_JOIN_TOKEN
+    #initialize the swarm and write out the join tokens to files on the share
+    docker swarm init
+    docker swarm join-token manager | grep "docker swarm join" | xargs > $MANAGER_JOIN_TOKEN
+    docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
+    #bail out after starting the swarm
+    exit 0
+  #otherwise we're either a different manager node, or manager0 after the swarm has been created
+  else
+    JOIN_TOKEN=$MANAGER_JOIN_TOKEN
+  fi
+#otherwise we're on a worker node
+else
+  JOIN_TOKEN=$WORKER_JOIN_TOKEN
+fi
+
+#wait around for 5 minutes for the join token files to be created
+echo "waiting for join token..."
+until [[ -f $JOIN_TOKEN || $LOOP_COUNTER -ge 60 ]]; do
+  LOOP_COUNTER=$((LOOP_COUNTER+1))
+  echo "    iteration $LOOP_COUNTER, sleeping for 5 seconds..."
+  sleep 5
+done
+
+#error out if we hit the timeout and still no file
+if [[ ! -f $JOIN_TOKEN ]]; then
+  echo "no join token after 5 minutes, timing out"
+  exit 1
+fi
+
+#run the join command if the file exists
+echo "found join token info; joining swarm"
+sh $JOIN_TOKEN
