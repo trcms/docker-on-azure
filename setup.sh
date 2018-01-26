@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export DOCKER_FOR_UBUNTU_VERSION="17.06.2~ce-0~ubuntu"
+export DOCKER_FOR_UBUNTU_VERSION="17.12.0~ce-0~ubuntu"
 
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update
