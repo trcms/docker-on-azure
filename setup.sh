@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PRIVATE_IP=$(ifconfig eth0 | grep \"inet addr:\" | cut -d: -f2 | cut -d\" \" -f1)
+export AZURE_HOSTNAME=$(hostname)
 export DOCKER_FOR_UBUNTU_VERSION="17.12.0~ce-0~ubuntu"
 
 # ensure system is up to date, add prerequisite dependencies
@@ -78,7 +80,7 @@ JOIN_TOKEN=""
 LOOP_COUNTER=0
 
 #if we're on a manager node:
-if [[ $AZURE_HOSTNAME == swarm-manager* ]]; then
+if [[ $AZURE_HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
   #if we're on manager0 and we don't have both token files:
   if [[ $AZURE_HOSTNAME == *0 && !(-f $MANAGER_JOIN_TOKEN && -f $WORKER_JOIN_TOKEN) ]]; then
     echo "running from first manager node and no tokens exist; initiating swarm"
