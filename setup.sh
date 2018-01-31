@@ -52,7 +52,7 @@ sudo sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
 
 #set timezone
-sudo timedatectl set-timezone $AZURE_TIMEZONE
+sudo timedatectl set-timezone $TIMEZONE
 
 #create directory for local volumes (grafana and prometheus have issues with writing to cifs shares)
 LOCAL_VOLUME_DIR=/volumes/local
