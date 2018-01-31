@@ -1,9 +1,11 @@
 [concat(
 'Content-Type: multipart/mixed; boundary=\"==BOUNDARY==\"\n',
 'MIME-Version: 1.0\n',
+'\n',
 '--==BOUNDARY==\n',
 'MIME-Version: 1.0\n',
 'Content-Type: text/x-shellscript; charset=\"us-ascii\"\n',
+'\n',
 '#!/bin/bash\n',
 'export ADMIN_USER=\"', variables('adminUsername'), '\"\n',
 'export AZURE_TIMEZONE=\"', variables('timezone'), '\"\n', 
@@ -14,14 +16,14 @@
 'export SWARM_VOLUME_SHARE=\"', variables('swarmVolumeShare'), '\"\n', 
 'export SWARM_VOLUME_LOCAL_MOUNTS=\"', variables('swarmVolumeLocalMounts'), '\"\n', 
 'export SWARM_VOLUME_REMOTE_MOUNTS=\"', variables('swarmVolumeRemoteMounts'), '\"\n',
+'\n',
 '--==BOUNDARY==\n',
 'MIME-Version: 1.0\n',
 'Content-Type: text/x-include-url; charset=\"us-ascii\"\n',
+'\n',
 variables('vmssCloudConfigUrl'), '\n',
-'--==BOUNDARY==\n',
-'MIME-Version: 1.0\n',
-'Content-Type: text/x-include-url; charset=\"us-ascii\"\n',
 variables('vmssSetupScriptUrl'), '\n',
+'\n',
 '--==BOUNDARY==--\n'
 )]
 

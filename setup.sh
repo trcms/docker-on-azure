@@ -1,8 +1,9 @@
 #!/bin/bash
 
-export PRIVATE_IP=$(ifconfig eth0 | grep \"inet addr:\" | cut -d: -f2 | cut -d\" \" -f1)
-export AZURE_HOSTNAME=$(hostname)
+export PRIVATE_IP=$(ifconfig eth0 | grep "inet addr:" | cut -d: -f2 | cut -d" " -f1)
+export HOSTNAME=$(hostname)
 export DOCKER_FOR_UBUNTU_VERSION="17.12.0~ce-0~ubuntu"
+export REBOOT_TIME=3
 
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update
@@ -29,6 +30,14 @@ sudo tee /etc/docker/daemon.json > /dev/null <<EOF
   }
 }
 EOF
+
+#enable swap support in kernel
+sudo tee /etc/default/grub.d/99-enable-swap.cfg > /dev/null <<EOF
+GRUB_CMDLINE_LINUX_DEFAULT="console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300 cgroup_enable=memory swapaccount=1"
+EOF
+
+#rebuild grub.cfg
+sudo update-grub
 
 #enable ssh user to run docker commands without sudo
 sudo usermod -aG docker $ADMIN_USER
@@ -80,18 +89,19 @@ JOIN_TOKEN=""
 LOOP_COUNTER=0
 
 #if we're on a manager node:
-if [[ $AZURE_HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
+if [[ $HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
   #if we're on manager0 and we don't have both token files:
-  if [[ $AZURE_HOSTNAME == *0 && !(-f $MANAGER_JOIN_TOKEN && -f $WORKER_JOIN_TOKEN) ]]; then
-    echo "running from first manager node and no tokens exist; initiating swarm"
+  if [[ $HOSTNAME == *0 && !(-f $MANAGER_JOIN_TOKEN && -f $WORKER_JOIN_TOKEN) ]]; then
+    echo "running from first manager node and no tokens exist; initiating swarm then restarting in ${REBOOT_TIME} mins"
     #clean up old files if we're in a bad state
     rm -f $MANAGER_JOIN_TOKEN
     rm -f $WORKER_JOIN_TOKEN
     #initialize the swarm and write out the join tokens to files on the share
-    docker swarm init
-    docker swarm join-token manager | grep "docker swarm join" | xargs > $MANAGER_JOIN_TOKEN
-    docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
+    docker swarm init --advertise-addr eth0 --data-path-addr eth1
+    docker swarm join-token manager | grep "docker swarm join" | xargs -I "%" echo "%" "--advertise-addr eth0 --data-path-addr eth1" > $MANAGER_JOIN_TOKEN
+    docker swarm join-token worker | grep "docker swarm join" | xargs -I "%" echo "%" "--advertise-addr eth0 --data-path-addr eth1" > $WORKER_JOIN_TOKEN
     #bail out after starting the swarm
+    sudo shutdown -r $REBOOT_TIME
     exit 0
   #otherwise we're either a different manager node, or manager0 after the swarm has been created
   else
@@ -117,5 +127,8 @@ if [[ ! -f $JOIN_TOKEN ]]; then
 fi
 
 #run the join command if the file exists
-echo "found join token info; joining swarm"
+echo "found join token info; joining swarm, then restarting in ${REBOOT_TIME} mins"
 sh $JOIN_TOKEN
+
+
+sudo shutdown -r $REBOOT_TIME
