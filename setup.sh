@@ -31,7 +31,7 @@ sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 }
 EOF
 
-#enable swap support in kernel
+#enable swap support in kernel (requires reboot)
 sudo tee /etc/default/grub.d/99-enable-swap.cfg > /dev/null <<EOF
 GRUB_CMDLINE_LINUX_DEFAULT="console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300 cgroup_enable=memory swapaccount=1"
 EOF
@@ -48,8 +48,26 @@ sudo systemctl restart docker
 
 #set max map kernel option appropriately for elasticsearch
 sudo sysctl -w vm.max_map_count=262144
-#ensure value gets set on restart
 echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
+
+#disable ipv6 support
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
+sudo tee /etc/sysctl.d/99-disable-ipv6.conf > /dev/null <<EOF
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
+EOF
+
+#disable hyper-v time sync (requires reboot)
+sudo tee /etc/rc.local > /dev/null <<EOF
+#!/bin/sh -e
+echo 2dd1ce17-079e-403c-b352-a1921ee207ee > /sys/bus/vmbus/drivers/hv_util/unbind
+exit 0
+EOF
+chmod +x /etc/rc.local
 
 #set timezone
 sudo timedatectl set-timezone $TIMEZONE
