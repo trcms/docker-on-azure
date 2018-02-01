@@ -46,6 +46,13 @@ sudo systemctl enable docker
 #bounce docker for config changes
 sudo systemctl restart docker
 
+#set MACAddressPolicy, see https://github.com/systemd/systemd/issues/3374
+sudo tee /etc/systemd/network/99-default.link > /dev/null <<EOF
+[Link]
+NamePolicy=kernel database onboard slot path
+MACAddressPolicy=none
+EOF
+
 #set max map kernel option appropriately for elasticsearch
 sudo sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" | sudo tee /etc/sysctl.d/60-max-maps.conf > /dev/null
