@@ -123,8 +123,11 @@ if [[ $HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
     rm -f $WORKER_JOIN_TOKEN
     #initialize the swarm and write out the join tokens to files on the share
     docker swarm init
-    docker swarm join-token manager | grep "docker swarm join" | xargs > $MANAGER_JOIN_TOKEN
+    docker node update --availability drain $HOSTNAME
+
+    docker swarm join-token manager | grep "docker swarm join" | xargs -I "%" echo "%" " && docker node update --availability drain $HOSTNAME" > $MANAGER_JOIN_TOKEN
     docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
+
     #bail out after starting the swarm
     sudo shutdown -r $REBOOT_TIME
     exit 0
