@@ -8,7 +8,7 @@ export REBOOT_TIME=3
 # ensure system is up to date, add prerequisite dependencies
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common ntp vim unzip
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common ntp ntpstat vim unzip
 
 #set up docker repo
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
@@ -122,9 +122,9 @@ if [[ $HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
     rm -f $MANAGER_JOIN_TOKEN
     rm -f $WORKER_JOIN_TOKEN
     #initialize the swarm and write out the join tokens to files on the share
-    docker swarm init --advertise-addr eth0 --data-path-addr eth1
-    docker swarm join-token manager | grep "docker swarm join" | xargs -I "%" echo "%" "--advertise-addr eth0 --data-path-addr eth1" > $MANAGER_JOIN_TOKEN
-    docker swarm join-token worker | grep "docker swarm join" | xargs -I "%" echo "%" "--advertise-addr eth0 --data-path-addr eth1" > $WORKER_JOIN_TOKEN
+    docker swarm init
+    docker swarm join-token manager | grep "docker swarm join" | xargs > $MANAGER_JOIN_TOKEN
+    docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
     #bail out after starting the swarm
     sudo shutdown -r $REBOOT_TIME
     exit 0
