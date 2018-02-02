@@ -125,7 +125,7 @@ if [[ $HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
     docker swarm init
     docker node update --availability drain $HOSTNAME
 
-    docker swarm join-token manager | grep "docker swarm join" | xargs -I "%" echo "%" " && docker node update --availability drain $HOSTNAME" > $MANAGER_JOIN_TOKEN
+    docker swarm join-token manager | grep "docker swarm join" | xargs -I "%" echo "%" " && docker node update --availability drain \$HOSTNAME" > $MANAGER_JOIN_TOKEN
     docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
 
     #bail out after starting the swarm
