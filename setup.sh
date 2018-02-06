@@ -119,15 +119,15 @@ if [[ $HOSTNAME == ${MANAGER_NAME_PREFIX}* ]]; then
   if [[ $HOSTNAME == *0 && !(-f $MANAGER_JOIN_TOKEN && -f $WORKER_JOIN_TOKEN) ]]; then
     echo "running from first manager node and no tokens exist; initiating swarm then restarting in ${REBOOT_TIME} mins"
     #clean up old files if we're in a bad state
-    rm -f $MANAGER_JOIN_TOKEN
-    rm -f $WORKER_JOIN_TOKEN
+    rm -f $MANAGER_JOIN_TOKEN $WORKER_JOIN_TOKEN
 
     #initialize the swarm and write out the join tokens to files on the share
     docker swarm init
     [ "$MANAGERS_AVAILABLE" == "False" ] && docker node update --availability drain $HOSTNAME
-    docker swarm join-token manager | grep "docker swarm join" | xargs $MANAGER_JOIN_TOKEN
+    docker swarm join-token manager | grep "docker swarm join" | xargs > $MANAGER_JOIN_TOKEN
     [ "$MANAGERS_AVAILABLE" == "False" ] && echo "docker node update --availability drain \$HOSTNAME" >> $MANAGER_JOIN_TOKEN
     docker swarm join-token worker | grep "docker swarm join" | xargs > $WORKER_JOIN_TOKEN
+    chmod +x $MANAGER_JOIN_TOKEN $WORKER_JOIN_TOKEN
 
     #bail out after starting the swarm
     sudo shutdown -r $REBOOT_TIME
@@ -157,7 +157,5 @@ fi
 
 #run the join command if the file exists
 echo "found join token info; joining swarm, then restarting in ${REBOOT_TIME} mins"
-sh $JOIN_TOKEN
-
-
+$JOIN_TOKEN
 sudo shutdown -r $REBOOT_TIME
