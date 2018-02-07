@@ -143,7 +143,7 @@ fi
 
 #wait around for 5 minutes for the join token files to be created
 echo "waiting for join token..."
-until [[ -f $JOIN_TOKEN || $LOOP_COUNTER -ge 60 ]]; do
+until [[ -f $JOIN_TOKEN || $LOOP_COUNTER -ge 120 ]]; do
   LOOP_COUNTER=$((LOOP_COUNTER+1))
   echo "    iteration $LOOP_COUNTER, sleeping for 5 seconds..."
   sleep 5
@@ -151,7 +151,7 @@ done
 
 #error out if we hit the timeout and still no file
 if [[ ! -f $JOIN_TOKEN ]]; then
-  echo "no join token after 5 minutes, timing out"
+  echo "no join token after 10 minutes, timing out"
   exit 1
 fi
 
