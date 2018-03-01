@@ -82,11 +82,27 @@ sudo timedatectl set-timezone $TIMEZONE
 #create directory for local volumes (grafana and prometheus have issues with writing to cifs shares)
 LOCAL_VOLUME_DIR=/volumes/local
 sudo mkdir -p $LOCAL_VOLUME_DIR
+
 #convert delimeted string to bash array, loop through
 LOCAL_MOUNTS=$(echo $SWARM_VOLUME_LOCAL_MOUNTS | tr ' ' "\n")
 for LOCAL_MOUNT in ${LOCAL_MOUNTS[@]}; do
   sudo mkdir -p $LOCAL_VOLUME_DIR/$LOCAL_MOUNT
   sudo chmod 777 $LOCAL_VOLUME_DIR/$LOCAL_MOUNT
+done
+
+#create directory for document volumes
+DOCUMENT_DIR=/volumes/documents
+sudo mkdir -p $DOCUMENT_DIR
+
+#add share to fstab
+echo "//$STORAGE_ACCOUNT_NAME.$STORAGE_ACCOUNT_DNS/$SWARM_DOCUMENT_SHARE $DOCUMENT_DIR cifs vers=3.0,username=$STORAGE_ACCOUNT_NAME,password=$SA_KEY,dir_mode=0777,file_mode=0777,sec=ntlmssp,nobrl,noperm 0 0" | sudo tee -a /etc/fstab
+sudo mount $DOCUMENT_DIR
+
+#convert delimeted string to bash array, loop through
+DOCUMENT_MOUNTS=$(echo $SWARM_VOLUME_DOCUMENT_MOUNTS | tr ' ' "\n")
+for DOCUMENT_MOUNT in ${DOCUMENT_MOUNTS[@]}; do
+  sudo mkdir -p $DOCUMENT_DIR/$DOCUMENT_MOUNT
+  sudo chmod 777 $DOCUMENT_DIR/$DOCUMENT_MOUNT
 done
 
 #create directory for remote volumes
